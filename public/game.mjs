@@ -1,10 +1,13 @@
 export const STEP = 1 / 120;
 export const SPAWN_SECONDS = 5;
+export const MAX_EXPANSIONS = 3;
+const BASE_WIDTH = 920;
+const BASE_HEIGHT = 610;
 const MONA_SPEED = 125;
 const BUG_SPEED = 68;
 const opposite = { left: 'right', right: 'left', up: 'down', down: 'up' };
 
-export function createMap() {
+export function createMap(expansions = 0) {
   const nodes = [], segments = [];
   const locations = new Map();
   function node(x, y) {
@@ -39,11 +42,52 @@ export function createMap() {
     const stops = [...ys, frontY(x), ...(x === 327 ? [430] : [])].sort((a, b) => a - b);
     for (let i = 1; i < stops.length; i++) segment(x, stops[i - 1], x, stops[i], 'down');
   }
+  const spawn = node(327, 430);
+  let edges = {
+    left: [...ys, frontY(xs[0])].map(y => node(xs[0], y)),
+    right: [...ys, frontY(xs.at(-1))].map(y => node(xs.at(-1), y)),
+    up: xs.slice(1, -1).map(x => node(x, ys[0])),
+    down: xs.slice(1, -1).map(x => node(x, frontY(x))),
+  };
+  let bounds = { x: 0, y: 0, width: BASE_WIDTH, height: BASE_HEIGHT };
+  for (let level = 1; level <= expansions; level++) {
+    const width = bounds.width * 1.5, height = bounds.height * 1.5;
+    const x = (BASE_WIDTH - width) / 2, y = (BASE_HEIGHT - height) / 2;
+    const left = (x + bounds.x) / 2, right = BASE_WIDTH - left;
+    const top = (y + bounds.y) / 2, bottom = BASE_HEIGHT - top;
+    const nextEdges = {};
+
+    // Continue each outbound street across a belt road to a new playable edge.
+    for (const [direction, gates] of Object.entries(edges)) {
+      const vertical = direction === 'up' || direction === 'down';
+      const belt = { left, right, up: top, down: bottom }[direction];
+      const edge = { left: x + 45, right: x + width - 45, up: y + 32, down: y + height - 32 }[direction];
+      const first = vertical ? left : top, last = vertical ? right : bottom;
+      const along = gates.map(id => vertical ? nodes[id].x : nodes[id].y);
+      const stops = [first, ...along, last];
+      for (let i = 1; i < stops.length; i++) {
+        const a = stops[i - 1], b = stops[i];
+        if (vertical) segment(a, belt, b, belt, 'right');
+        else segment(belt, a, belt, b, 'down');
+      }
+      nextEdges[direction] = gates.map(id => {
+        const from = nodes[id];
+        const joinX = vertical ? from.x : belt, joinY = vertical ? belt : from.y;
+        const endX = vertical ? from.x : edge, endY = vertical ? edge : from.y;
+        segment(from.x, from.y, joinX, joinY, direction);
+        segment(joinX, joinY, endX, endY, direction);
+        return node(endX, endY);
+      });
+    }
+    bounds = { x, y, width, height };
+    edges = nextEdges;
+  }
   return {
-    nodes, segments, width: 920, height: 610,
-    spawn: node(327, 430),
+    nodes, segments, ...bounds, expansions,
+    gates: new Set(Object.values(edges).flat()),
+    spawn,
     bugSpawn: node(684, 72),
-    pickupNodes: nodes.filter(n => n.id !== locations.get('327.00000,430.00000')).map(n => n.id),
+    pickupNodes: nodes.filter(n => n.id !== spawn).map(n => n.id),
   };
 }
 
@@ -124,7 +168,7 @@ function move(entity, speed, map, choose, arrived = () => {}) {
       entity.node = entity.target;
       entity.target = null;
       entity.progress = 0;
-      arrived(entity.node);
+      map = arrived(entity.node) ?? map;
     }
     trace.push({ ...position(entity, map), t: (budget - remaining) / budget });
   }
@@ -157,14 +201,23 @@ export function tracesCollide(a, b, radius = 19) {
   return false;
 }
 
-function collect(game, node) {
-  if (!game.commits.delete(node)) return;
-  game.score++;
-  if (game.commits.size === 0) {
+function arrive(game, node) {
+  const collected = game.commits.delete(node);
+  if (collected) game.score++;
+  // Decide whether the round was cleared before the new streets add pickups.
+  const cleared = collected && game.commits.size === 0;
+  const previous = game.map;
+  if (previous.expansions < MAX_EXPANSIONS && previous.gates.has(node)) {
+    game.map = createMap(previous.expansions + 1);
+    game.pursuitDestination = undefined;
+    for (let id = previous.nodes.length; id < game.map.nodes.length; id++) game.commits.add(id);
+  }
+  if (cleared) {
     game.commits = new Set(game.map.pickupNodes);
     game.commits.delete(node);
     game.round++;
   }
+  return game.map;
 }
 
 function spawnBug(game) {
@@ -182,18 +235,19 @@ function spawnBug(game) {
 export function stepGame(game) {
   if (game.state !== 'playing') return;
   game.ticks++;
-  const { player, map } = game;
+  const { player } = game;
   if (player.target !== null && player.desired === opposite[player.direction]) {
-    const a = map.nodes[player.node], b = map.nodes[player.target];
+    const a = game.map.nodes[player.node], b = game.map.nodes[player.target];
     player.progress = Math.hypot(b.x - a.x, b.y - a.y) - player.progress;
     [player.node, player.target] = [player.target, player.node];
     player.direction = player.desired;
   }
-  if (player.target === null) collect(game, player.node);
-  const playerTrace = move(player, MONA_SPEED, map, (entity, neighbors) => {
+  if (player.target === null) arrive(game, player.node);
+  const playerTrace = move(player, MONA_SPEED, game.map, (entity, neighbors) => {
     if (neighbors[entity.desired] !== undefined) return entity.desired;
     return entity.direction;
-  }, node => collect(game, node));
+  }, node => arrive(game, node));
+  const { map } = game;
   const destination = player.target ?? player.node;
   if (game.pursuitDestination !== destination) {
     game.pursuitDestination = destination;
