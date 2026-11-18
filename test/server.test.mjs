@@ -27,9 +27,10 @@ test('local HTTP app serves only allowlisted assets and accepts valid score roun
   assert.equal(page.status, 200);
   assert.match(await page.text(), /Mona \/ Toronto/);
   assert.equal((await fetch(url, { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status, 200);
-  for (const file of ['/styles.css', '/app.mjs', '/game.mjs', '/favicon.svg']) {
+  for (const file of ['/styles.css', '/app.mjs', '/game.mjs', '/browser-scores.mjs', '/favicon.svg']) {
     assert.equal((await fetch(url + file)).status, 200);
   }
+  assert.match(await (await fetch(url + '/config.mjs')).text(), /scoreMode = 'server'/);
   for (const file of ['/data/scores.csv', '/storage.mjs', '/README.md', '/%2e%2e/server.mjs']) {
     assert.equal((await fetch(url + file)).status, 404);
   }

@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#090e15">
   <title>Mona / Toronto</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css">
-  <script type="module" src="/app.mjs"></script>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.mjs"></script>
 </head>
 <body>
 <main class="app">
   <header>
     <div class="brand"><div class="brand-mark" aria-hidden="true">m.</div><div><strong>MONA / TORONTO</strong><span>A little city. A lot of bugs.</span></div></div>
-    <div class="local-status"><i></i> LOCAL ONLY / NO CLOUD / NO ACCOUNT</div>
+    <div class="local-status"><i></i> <span id="storage-mode">LOCAL ONLY / NO CLOUD / NO ACCOUNT</span></div>
   </header>
   <div class="title-row">
     <div><div class="eyebrow">Downtown debug district</div><h1>Ship commits. Dodge bugs.</h1><p>Take the scenic route through Toronto. Keep your streak alive.</p></div>
@@ -49,7 +49,7 @@
         <ol id="leaderboard" aria-label="Top ten players"></ol>
         <p id="leaderboard-status" role="status">Reading local scores...</p>
         <button id="reload-scores" class="secondary" hidden>Retry leaderboard</button>
-        <p class="storage-note">Saved to <code>data/scores.csv</code><br>On this computer. Nowhere else.</p>
+        <p class="storage-note" id="storage-note">Saved to <code>data/scores.csv</code><br>On this computer. Nowhere else.</p>
       </section>
       <section class="panel">
         <div class="eyebrow">Your field guide</div><h2>Own the streets.</h2>

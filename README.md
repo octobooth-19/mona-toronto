@@ -3,6 +3,19 @@
 A dependency-free, offline Toronto arcade game. Collect commit icons as Mona,
 avoid the bugs, and compete on this computer's leaderboard.
 
+## Play on GitHub Pages
+
+Open **https://octobooth-19.github.io/mona-toronto/** once the Pages workflow
+has deployed. Scores on the hosted game stay in this browser on this device;
+they are not shared and clearing site data removes them. Browser storage must
+be available to save scores. The hosted leaderboard is separate from the local
+server's CSV and is not tamper-proof.
+
+To publish, enable GitHub Pages in repository **Settings → Pages**, choose
+**GitHub Actions** as the source, and push the Pages workflow to `main`.
+The workflow can also be started manually from the Actions tab. It publishes
+only the `public` directory; the Node server and CSV are not deployed.
+
 ## Developer
 
 [Garreth Golding](https://github.com/garrethgolding) ·
@@ -50,7 +63,7 @@ supporting information on demand and pauses an active run.
 
 ## Scores and player names
 
-The server creates **`data/scores.csv`** beside `server.mjs`, outside the public
+When running locally, the server creates **`data/scores.csv`** beside `server.mjs`, outside the public
 folder. It stores `run_id,username,score,duration_ms,completed_at` for every
 completed run and reloads them after a restart. Back up this file to keep scores.
 Stop the server before editing it. Invalid CSV is reported, not overwritten.

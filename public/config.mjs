@@ -1,0 +1,1 @@
+export const scoreMode = 'browser';

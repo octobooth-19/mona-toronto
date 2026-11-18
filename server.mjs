@@ -11,6 +11,7 @@ const assets = new Map([
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
   ['/app.mjs', ['app.mjs', 'text/javascript; charset=utf-8']],
   ['/game.mjs', ['game.mjs', 'text/javascript; charset=utf-8']],
+  ['/browser-scores.mjs', ['browser-scores.mjs', 'text/javascript; charset=utf-8']],
   ['/favicon.svg', ['favicon.svg', 'image/svg+xml']],
 ]);
 
@@ -65,6 +66,10 @@ export function createApp({ scoresFile = join(root, 'data', 'scores.csv') } = {}
         throw new InputError('Method not allowed.', 405);
       }
       if (!['GET', 'HEAD'].includes(request.method)) throw new InputError('Method not allowed.', 405);
+      if (url.pathname === '/config.mjs') {
+        response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
+        return response.end(request.method === 'HEAD' ? undefined : "export const scoreMode = 'server';\n");
+      }
       const asset = assets.get(url.pathname);
       if (!asset) throw new InputError('Not found.', 404);
       const content = await readFile(join(root, 'public', asset[0]));
