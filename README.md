@@ -34,6 +34,13 @@ page scrolling. In narrow windows, **Leaderboard & field guide** opens the
 supporting information on demand and pauses an active run.
 
 - One commit = one point. Clearing the board refills the commits.
+- When Mona reaches the end of an outer street, Toronto grows 50% wider and 50%
+  taller around downtown. The board zooms out to show the whole map without
+  resizing the viewport. New streets bring new commits; your score, remaining
+  commits, and bug timer carry over. If the boundary pickup is the last commit
+  of a round, the refill covers the expanded map.
+- After three expansions, outer street ends stop Mona until you turn back.
+  Starting a new game returns to the original downtown map.
 - One bug starts on the map. One more appears every **5 seconds of active play**,
   with no enemy limit. Touching a bug ends the single-life run.
 - **Esc** or **Pause** freezes movement, elapsed time, and spawning. Switching

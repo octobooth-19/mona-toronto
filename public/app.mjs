@@ -1,10 +1,9 @@
-import { createMap, createGame, startGame, position, STEP, setDirection, stepGame, pauseGame, resumeGame } from './game.mjs';
+import { createGame, startGame, position, STEP, MAX_EXPANSIONS, setDirection, stepGame, pauseGame, resumeGame } from './game.mjs';
 
 const $ = selector => document.querySelector(selector);
 const canvas = $('#board');
 const ctx = canvas.getContext('2d');
-const map = createMap();
-let game = createGame(map);
+let game = createGame();
 let username = '';
 let runId = '';
 let pendingRun = null;
@@ -32,8 +31,12 @@ const background = document.createElement('canvas');
 background.width = canvas.width;
 background.height = canvas.height;
 const bg = background.getContext('2d');
-bg.scale(2, 2);
-ctx.scale(2, 2);
+let drawnMap;
+
+function fitMap(context, map) {
+  const scale = canvas.width / map.width;
+  context.setTransform(scale, 0, 0, scale, -map.x * scale, -map.y * scale);
+}
 
 function text(context, value, x, y, color = '#91a7bc', size = 10) {
   context.fillStyle = color;
@@ -41,13 +44,21 @@ function text(context, value, x, y, color = '#91a7bc', size = 10) {
   context.fillText(value, x, y);
 }
 
-function drawBackground() {
+function drawBackground(map) {
+  fitMap(bg, map);
+  const { x, y, width, height } = map;
   bg.fillStyle = '#0c141e';
-  bg.fillRect(0, 0, map.width, map.height);
+  bg.fillRect(x, y, width, height);
   bg.strokeStyle = '#172737';
   bg.lineWidth = .4;
-  for (let x = 0; x < 920; x += 23) { bg.beginPath(); bg.moveTo(x, 0); bg.lineTo(x, 610); bg.stroke(); }
-  for (let y = 0; y < 610; y += 23) { bg.beginPath(); bg.moveTo(0, y); bg.lineTo(920, y); bg.stroke(); }
+  bg.beginPath();
+  for (let column = Math.ceil(x / 23) * 23; column < x + width; column += 23) {
+    bg.moveTo(column, y); bg.lineTo(column, y + height);
+  }
+  for (let row = Math.ceil(y / 23) * 23; row < y + height; row += 23) {
+    bg.moveTo(x, row); bg.lineTo(x + width, row);
+  }
+  bg.stroke();
   const xs = [57, 199, 347, 538, 705], widths = [103, 108, 151, 125, 145];
   for (const y of [93, 196, 298, 403]) for (let i = 0; i < xs.length; i++) {
     bg.fillStyle = '#14202c'; bg.strokeStyle = '#203244'; bg.lineWidth = 1;
@@ -75,9 +86,8 @@ function drawBackground() {
     ['ST. LAWRENCE', 729, 331], ['HOCKEY HALL', 549, 429], ['OF FAME', 549, 445],
     ['UNION STATION', 692, 592],
   ].forEach(([name, x, y]) => text(bg, name, x, y, '#6d869d', 10));
-  text(bg, 'N', 862, 24); text(bg, '^', 862, 39);
+  text(bg, 'N', x + width - 58, y + 24); text(bg, '^', x + width - 58, y + 39);
 }
-drawBackground();
 
 function drawMona(x, y) {
   ctx.save(); ctx.translate(x, y);
@@ -99,7 +109,7 @@ function drawMona(x, y) {
 }
 
 function drawBug(bug, index) {
-  const { x, y } = position(bug, map);
+  const { x, y } = position(bug, game.map);
   ctx.save(); ctx.translate(x, y);
   ctx.strokeStyle = index % 2 ? '#ffb28c' : '#ff8885'; ctx.fillStyle = ctx.strokeStyle;
   ctx.lineWidth = 2.4; ctx.lineCap = 'round';
@@ -114,8 +124,14 @@ function drawBug(bug, index) {
 }
 
 function render() {
-  ctx.clearRect(0, 0, map.width, map.height);
-  ctx.drawImage(background, 0, 0, map.width, map.height);
+  const { map } = game;
+  if (drawnMap !== map) {
+    drawBackground(map);
+    drawnMap = map;
+  }
+  ctx.resetTransform();
+  ctx.drawImage(background, 0, 0);
+  fitMap(ctx, map);
   ctx.strokeStyle = '#a4f6b6'; ctx.lineWidth = 1.5;
   ctx.beginPath();
   for (const id of game.commits) {
@@ -142,7 +158,8 @@ function render() {
 }
 
 function updateScreen() {
-  const stateKey = `${game.state}:${saving}:${saveMessage}`;
+  const expansions = game.map.expansions;
+  const stateKey = `${game.state}:${expansions}:${saving}:${saveMessage}`;
   if (lastDisplay === stateKey) return;
   lastDisplay = stateKey;
   const overlay = $('#overlay');
@@ -165,7 +182,9 @@ function updateScreen() {
     $('#overlay-action').textContent = saving ? 'Saving locally...' : pendingRun ? 'Retry score save' : 'New game';
     $('#run-status').textContent = saveMessage;
   } else if (game.state === 'playing') {
-    $('#run-status').textContent = 'Arrow keys / WASD to move. Queue turns early. Esc to pause.';
+    $('#run-status').textContent = expansions === 0
+      ? 'Reach a street end to expand Toronto.'
+      : `Map expanded (${expansions}/${MAX_EXPANSIONS}). ${expansions === MAX_EXPANSIONS ? 'Outer edges are solid.' : 'The board zoomed out.'}`;
   }
 }
 
@@ -209,7 +228,7 @@ $('#start-form').addEventListener('submit', event => {
   }
   username = value;
   runId = crypto.randomUUID();
-  game = startGame(map);
+  game = startGame();
   accumulator = 0;
   lastFrame = 0;
   saveMessage = '';

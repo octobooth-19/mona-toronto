@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createMap, startGame, createGame, position, makeEntity, stepGame,
-  setDirection, pauseGame, resumeGame, tracesCollide, STEP,
+  setDirection, pauseGame, resumeGame, tracesCollide, STEP, MAX_EXPANSIONS,
 } from '../public/game.mjs';
 
 function tick(game, count) {
@@ -69,6 +69,106 @@ test('picking up the last commit adds exactly one point and refills the city', (
   assert.equal(game.score, 1);
   assert.equal(game.round, 2);
   assert.equal(game.commits.size, game.map.pickupNodes.length - 1);
+});
+
+function approachGate(game, direction) {
+  const reverse = { left: 'right', right: 'left', up: 'down', down: 'up' }[direction];
+  const gate = [...game.map.gates].map(id => game.map.nodes[id]).find(node => Object.hasOwn(node.neighbors, reverse));
+  const previous = game.map.nodes[gate.neighbors[reverse]];
+  Object.assign(game.player, {
+    ...makeEntity(previous.id), target: gate.id, direction, desired: direction,
+    progress: Math.hypot(previous.x - gate.x, previous.y - gate.y) - .5,
+  });
+  return gate;
+}
+
+test('all four playable edges expand on arrival into a connected, centered map without moving existing streets', () => {
+  for (const direction of ['left', 'right', 'up', 'down']) {
+    const game = startGame();
+    const { width, height } = game.map;
+    for (let level = 1; level <= MAX_EXPANSIONS; level++) {
+      const old = game.map;
+      const gate = approachGate(game, direction);
+      stepGame(game);
+      const { map } = game;
+      assert.equal(map.expansions, level);
+      assert.equal(map.width, old.width * 1.5);
+      assert.equal(map.height, old.height * 1.5);
+      assert.equal(map.x + map.width / 2, width / 2);
+      assert.equal(map.y + map.height / 2, height / 2);
+      assert.equal(game.player.node, gate.id);
+      assert.ok(game.player.target >= old.nodes.length, 'continues outward in the same tick');
+      assert.deepEqual(map.segments.slice(0, old.segments.length), old.segments);
+      for (const { id, x, y, neighbors } of old.nodes) {
+        assert.deepEqual([map.nodes[id].x, map.nodes[id].y], [x, y]);
+        for (const [turn, next] of Object.entries(neighbors)) assert.equal(map.nodes[id].neighbors[turn], next);
+      }
+      const visited = new Set([map.spawn]);
+      for (const id of visited) {
+        for (const next of Object.values(map.nodes[id].neighbors)) visited.add(next);
+      }
+      assert.equal(visited.size, map.nodes.length);
+    }
+    const finalMap = game.map;
+    const wall = approachGate(game, direction);
+    tick(game, 2);
+    assert.equal(game.map, finalMap);
+    assert.deepEqual(position(game.player, game.map), { x: wall.x, y: wall.y });
+  }
+});
+
+test('only Mona triggers growth; normal growth preserves remaining pickups, pursuit and spawn cadence', () => {
+  const game = startGame();
+  const old = game.map;
+  const gate = approachGate(game, 'left');
+  const mona = { ...game.player };
+  const bug = { ...mona };
+  game.player = makeEntity(old.spawn);
+  game.bugs = [bug];
+  stepGame(game);
+  assert.equal(bug.node, gate.id);
+  assert.equal(game.map, old);
+
+  const bugTarget = old.nodes[old.bugSpawn].neighbors.right;
+  Object.assign(bug, makeEntity(old.bugSpawn), { target: bugTarget, direction: 'right', progress: 4 });
+  game.player = mona;
+  const kept = old.nodes[old.spawn].neighbors.down;
+  game.commits = new Set([kept, gate.id]);
+  game.score = 12;
+  game.round = 2;
+  game.ticks = game.nextSpawnTick - 1;
+  const distances = game.pursuitDistances;
+  stepGame(game);
+  assert.equal(game.state, 'playing');
+  assert.equal(game.score, 13);
+  assert.equal(game.round, 2);
+  assert.deepEqual([...game.commits].filter(id => id < old.nodes.length), [kept]);
+  assert.equal(game.commits.size, 1 + game.map.nodes.length - old.nodes.length);
+  assert.equal(game.ticks, 600);
+  assert.equal(game.nextSpawnTick, 1200);
+  assert.equal(game.bugs.length, 2);
+  assert.equal(game.bugs[0], bug);
+  assert.equal(bug.node, old.bugSpawn);
+  assert.equal(bug.target, bugTarget);
+  assert.ok(bug.progress > 4);
+  assert.notEqual(game.pursuitDistances, distances);
+  assert.equal(game.pursuitDistances.length, game.map.nodes.length);
+
+  const fresh = startGame();
+  assert.equal(fresh.map.expansions, 0);
+  assert.equal(fresh.map.nodes.length, old.nodes.length);
+  assert.deepEqual([...fresh.commits], old.pickupNodes);
+});
+
+test('the last commit at a boundary scores once and refills the newly expanded map', () => {
+  const game = startGame();
+  const gate = approachGate(game, 'down');
+  game.commits = new Set([gate.id]);
+  stepGame(game);
+  assert.equal(game.score, 1);
+  assert.equal(game.round, 2);
+  assert.equal(game.map.expansions, 1);
+  assert.deepEqual([...game.commits], game.map.pickupNodes.filter(id => id !== gate.id));
 });
 
 test('bugs spawn at exactly five active seconds and pausing freezes all state', () => {
