@@ -2,7 +2,7 @@ name: Publish game to GitHub Pages
 
 on:
   push:
-    branches: [main, octobooth-19-publish-game-on-github-pages]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
