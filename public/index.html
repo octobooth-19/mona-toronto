@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090e15">
+  <title>Mona / Toronto</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body>
+<main class="app">
+  <header>
+    <div class="brand"><div class="brand-mark" aria-hidden="true">m.</div><div><strong>MONA / TORONTO</strong><span>A little city. A lot of bugs.</span></div></div>
+    <div class="local-status"><i></i> LOCAL ONLY / NO CLOUD / NO ACCOUNT</div>
+  </header>
+  <div class="title-row">
+    <div><div class="eyebrow">Downtown debug district</div><h1>Ship commits. Dodge bugs.</h1><p>Take the scenic route through Toronto. Keep your streak alive.</p></div>
+    <button class="primary" id="new-game">+ New game</button>
+  </div>
+  <div class="layout">
+    <section aria-label="Game board">
+      <div class="metrics">
+        <div class="metric"><div class="label">Commits collected</div><div class="value green"><span id="score">000</span> <small>pts</small></div></div>
+        <div class="metric"><div class="label">Run time</div><div class="value" id="time">00:00</div></div>
+        <div class="metric"><div class="label">Bugs on patrol</div><div class="value coral"><span id="bugs">01</span> <small>+1 / 5s</small></div></div>
+      </div>
+      <div class="map">
+        <div class="map-top"><span id="player-label">01 / DOWNTOWN TORONTO</span><button id="pause" class="text-button" disabled>READY TO EXPLORE</button></div>
+        <div class="board-wrap">
+          <canvas id="board" width="1840" height="1220" tabindex="0" aria-label="Toronto streets. Use arrow keys or WASD to move Mona; Escape pauses. Collect green commits and avoid coral bugs.">Your browser needs canvas support to play.</canvas>
+          <div class="overlay" id="overlay" data-state="ready">
+            <section><div class="eyebrow" id="overlay-tag">Your next adventure</div><h2 id="overlay-title">The city is yours.</h2><p id="overlay-copy">Mona is waiting at Design Exchange.<br>Choose a name. Start shipping.</p><button class="primary" id="overlay-action">Let's play</button></section>
+          </div>
+        </div>
+        <div class="map-footer"><span><b class="green commit-mini" aria-hidden="true">&#9900;</b> 1 commit = 1 point</span><span><b class="coral" aria-hidden="true">&#10038;</b> Avoid the bugs</span><span id="spawn-clock">Next bug in 5.0s</span></div>
+      </div>
+      <div class="run-status" role="status" id="run-status">One life. Endless commits. Start a new game to begin.</div>
+      <div class="touch-controls" aria-label="Movement controls"><button data-direction="left" aria-label="Move left">&larr;</button><button data-direction="up" aria-label="Move up">&uarr;</button><button data-direction="down" aria-label="Move down">&darr;</button><button data-direction="right" aria-label="Move right">&rarr;</button></div>
+    </section>
+    <aside>
+      <details class="info-drawer" open>
+      <summary>Leaderboard &amp; field guide</summary>
+      <div class="info-content">
+      <section class="panel">
+        <div class="eyebrow">The local legends</div><h2>Leaderboard</h2><p>Big commits. Hometown glory.</p>
+        <div class="score-columns"><span>PLAYER</span><span>BEST</span></div>
+        <ol id="leaderboard" aria-label="Top ten players"></ol>
+        <p id="leaderboard-status" role="status">Reading local scores...</p>
+        <button id="reload-scores" class="secondary" hidden>Retry leaderboard</button>
+        <p class="storage-note">Saved to <code>data/scores.csv</code><br>On this computer. Nowhere else.</p>
+      </section>
+      <section class="panel">
+        <div class="eyebrow">Your field guide</div><h2>Own the streets.</h2>
+        <div class="keys"><kbd>&uarr;</kbd><kbd>&larr;</kbd><kbd>&darr;</kbd><kbd>&rarr;</kbd><span>/</span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+        <p>Move Mona. Queue a turn before an intersection.</p>
+        <div class="rule">Collect commits. <b class="coral">One touch from a bug ends your run.</b></div>
+        <div class="rule">A new bug joins every <b class="coral">5 seconds.</b> Clear the commits to refill the city.</div>
+        <div class="rule"><kbd>Esc</kbd> Pause &middot; 1 life &middot; Endless</div>
+      </section>
+      </div>
+      </details>
+    </aside>
+  </div>
+  <footer><span>ORIGINAL TORONTO-INSPIRED MAP / SCHEMATIC, NOT TO SCALE</span><span>OFFLINE BY DESIGN</span></footer>
+</main>
+<dialog id="start-dialog" aria-labelledby="dialog-title">
+  <form id="start-form">
+    <div class="eyebrow">A fresh branch</div><h2 id="dialog-title">Make your mark.</h2>
+    <p>Start at Design Exchange.<br>See how many commits you can ship.</p>
+    <label for="username">Player name</label>
+    <input id="username" name="username" placeholder="e.g. octo_local" required autocomplete="off" aria-describedby="name-help name-error">
+    <p id="name-help" class="help">1-24 characters. Names are case-insensitive. No control characters or leading = + - @.</p>
+    <p id="name-error" class="coral" role="alert"></p>
+    <p id="replace-notice" class="help" hidden>Starting again discards this unfinished run.</p>
+    <button class="primary" type="submit">Start at Design Exchange</button>
+    <button class="cancel" type="button" id="cancel-start">Back to the city</button>
+  </form>
+</dialog>
+</body>
+</html>
