@@ -1,4 +1,6 @@
 import { createGame, startGame, position, STEP, MAX_EXPANSIONS, setDirection, stepGame, pauseGame, resumeGame } from './game.mjs';
+import { scoreMode } from './config.mjs';
+import { createBrowserScores } from './browser-scores.mjs';
 
 const $ = selector => document.querySelector(selector);
 const canvas = $('#board');
@@ -15,6 +17,10 @@ let lastDisplay = '';
 const dialog = $('#start-dialog');
 const infoDrawer = $('.info-drawer');
 const narrowScreen = matchMedia('(max-width: 850px)');
+if (scoreMode === 'browser') {
+  $('#storage-mode').textContent = 'BROWSER SCORES / NO ACCOUNT';
+  $('#storage-note').textContent = 'Scores stay in this browser on this device. Clearing site data removes them; scores are not shared.';
+}
 function fitInfoDrawer() {
   infoDrawer.open = !narrowScreen.matches;
 }
@@ -292,7 +298,9 @@ async function loadScores() {
   $('#reload-scores').hidden = true;
   $('#leaderboard-status').textContent = 'Reading local scores...';
   try {
-    const { leaderboard } = await requestJSON('/api/scores');
+    const leaderboard = scoreMode === 'browser'
+      ? createBrowserScores(window.localStorage).list()
+      : (await requestJSON('/api/scores')).leaderboard;
     $('#leaderboard').replaceChildren(...leaderboard.map((run, index) => {
       const row = document.createElement('li');
       for (const [className, value] of [['rank', String(index + 1).padStart(2, '0')], ['player', run.username], ['score', run.score]]) {
@@ -315,11 +323,17 @@ async function saveRun() {
   saveMessage = 'Saving your completed run to this computer...';
   updateScreen();
   try {
-    await requestJSON('/api/scores', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pendingRun),
-    });
+    if (scoreMode === 'browser') {
+      createBrowserScores(window.localStorage).save(pendingRun);
+    } else {
+      await requestJSON('/api/scores', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pendingRun),
+      });
+    }
     pendingRun = null;
-    saveMessage = `Nice run, ${username}. Your score is saved in scores.csv.`;
+    saveMessage = scoreMode === 'browser'
+      ? `Nice run, ${username}. Your score is saved in this browser.`
+      : `Nice run, ${username}. Your score is saved in scores.csv.`;
     await loadScores();
   } catch (error) {
     saveMessage = `Score NOT saved: ${error.message}\nKeep this page open and retry.`;
